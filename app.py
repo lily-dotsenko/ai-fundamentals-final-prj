@@ -53,6 +53,7 @@ def create_streamlit_app():
         try:
             prediction = load_and_predict(input_feature)
             st.write(f"Predicted target: {prediction[0]:.2f}")
+            visualize_difference(input_feature, prediction)
         except FileNotFoundError:
             st.error("Model file not found. Run python model.py first.")
 
@@ -78,39 +79,37 @@ def visualize_difference(input_feature: float, prediction: ArrayLike):
 
     y = load(y_filename)
 
-    actual_target = y[_index_of_closest(X, input_feature)]
+    X_values = np.asarray(X).reshape(-1)
+    y_values = np.asarray(y).reshape(-1)
+    closest_index = _index_of_closest(X_values, input_feature)
+    closest_feature = X_values[closest_index]
+    actual_target = y_values[closest_index]
+    predicted_target = float(np.asarray(prediction).reshape(-1)[0])
 
     # Calculate difference
-    difference = actual_target - prediction
+    difference = actual_target - predicted_target
 
     # Visualization
-    fig = plt.figure(figsize=(6,4))
-    # TODO: your code here
-
-    # Plot the entire dataset (X, y) as grey dots to visualize the data distribution.
-    # plt.scatter....
-
-    # Plot the actual target value for a specific input feature as a blue dot.
-    # plt.scatter...
-
-    # Plot the predicted target value for the same input feature as a red dot.
-    # plt.scatter...
-
-    # Display a legend on the plot to label the different scatter points (dataset, actual target, predicted target).
-
-    # Set the title of the plot, describing what is being visualized.
-
-    # Set the label for the x-axis to 'Feature', indicating that the x-axis represents the input features.
-
-    # Set the label for the y-axis to 'Target', indicating that the y-axis represents the target values (actual or predicted).
-
-    # Enable a grid on the plot to improve readability.
-
-    # Draw a dashed line ('k--' for black dashed line) between the actual and predicted target values to visually represent the difference.
-    # plt.plot...
-
-    # Annotate the plot with the difference between the actual and predicted target values, positioned halfway between them and offset slightly for visibility.
-    # plt.annotate...
+    fig, ax = plt.subplots(figsize=(6, 4))
+    ax.scatter(X_values, y_values, color="gray", label="Dataset")
+    ax.scatter(closest_feature, actual_target, color="blue", label="Actual target")
+    ax.scatter(input_feature, predicted_target, color="red", label="Predicted target")
+    ax.plot(
+        [closest_feature, input_feature],
+        [actual_target, predicted_target],
+        "k--",
+    )
+    ax.annotate(
+        f"Difference: {difference:.2f}",
+        ((closest_feature + input_feature) / 2, (actual_target + predicted_target) / 2),
+        xytext=(5, 5),
+        textcoords="offset points",
+    )
+    ax.set_title("Actual and Predicted Targets")
+    ax.set_xlabel("Feature")
+    ax.set_ylabel("Target")
+    ax.legend()
+    ax.grid()
 
     st.pyplot(fig)
 
