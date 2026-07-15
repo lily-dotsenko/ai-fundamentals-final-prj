@@ -4,6 +4,12 @@ from joblib import load
 import numpy as np
 from numpy.typing import ArrayLike
 import matplotlib.pyplot as plt
+from sklearn.datasets import make_regression
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import mean_squared_error, r2_score
+from sklearn.model_selection import train_test_split
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import PolynomialFeatures
 
 def load_and_predict(X: ArrayLike, filename: str = "linear_regression_model.joblib") -> ArrayLike:
     """
@@ -56,6 +62,68 @@ def create_streamlit_app():
             visualize_difference(input_feature, prediction)
         except FileNotFoundError:
             st.error("Model file not found. Run python model.py first.")
+
+    st.divider()
+    st.subheader("Regression comparison lab")
+    st.write(
+        "Adjust the synthetic data settings to compare linear and polynomial regression models."
+    )
+
+    n_samples = st.slider("Number of samples", 50, 500, 100)
+    noise = st.slider("Noise level", 0, 100, 20)
+    polynomial_degree = st.slider("Polynomial degree", 2, 5, 2)
+
+    if st.button("Compare models"):
+        X, y = make_regression(
+            n_samples=n_samples,
+            n_features=1,
+            noise=noise,
+            random_state=42,
+        )
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=0.2, random_state=42
+        )
+
+        linear_model = LinearRegression()
+        linear_model.fit(X_train, y_train)
+
+        polynomial_model = make_pipeline(
+            PolynomialFeatures(degree=polynomial_degree), LinearRegression()
+        )
+        polynomial_model.fit(X_train, y_train)
+
+        linear_predictions = linear_model.predict(X_test)
+        polynomial_predictions = polynomial_model.predict(X_test)
+        linear_mse = mean_squared_error(y_test, linear_predictions)
+        polynomial_mse = mean_squared_error(y_test, polynomial_predictions)
+        linear_r2 = r2_score(y_test, linear_predictions)
+        polynomial_r2 = r2_score(y_test, polynomial_predictions)
+
+        linear_column, polynomial_column = st.columns(2)
+        linear_column.metric("Linear model MSE", f"{linear_mse:.2f}")
+        linear_column.metric("Linear model R²", f"{linear_r2:.2f}")
+        polynomial_column.metric("Polynomial model MSE", f"{polynomial_mse:.2f}")
+        polynomial_column.metric("Polynomial model R²", f"{polynomial_r2:.2f}")
+
+        better_model = "Linear regression" if linear_mse <= polynomial_mse else "Polynomial regression"
+        st.write(f"Lower MSE in this experiment: {better_model}.")
+
+        X_grid = np.linspace(X.min(), X.max(), 200).reshape(-1, 1)
+        fig, ax = plt.subplots(figsize=(7, 4))
+        ax.scatter(X_test, y_test, color="gray", label="Test data")
+        ax.plot(X_grid, linear_model.predict(X_grid), color="blue", label="Linear regression")
+        ax.plot(
+            X_grid,
+            polynomial_model.predict(X_grid),
+            color="red",
+            label="Polynomial regression",
+        )
+        ax.set_title("Regression Model Comparison")
+        ax.set_xlabel("Feature")
+        ax.set_ylabel("Target")
+        ax.legend()
+        ax.grid()
+        st.pyplot(fig)
 
 def visualize_difference(input_feature: float, prediction: ArrayLike):
     """
